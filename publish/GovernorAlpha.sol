@@ -1022,8 +1022,8 @@ contract GovernorAlpha {
     /// @notice The duration of voting on a proposal, in blocks
     function votingPeriod() public pure returns (uint) { return 17280; } // ~3 days in blocks (assuming 15s blocks)
 
-    /// @notice The address of the Compound Protocol Timelock
-    TimelockInterface public timelock;
+    /// @notice The address of the Compound Protocol Squidlock
+    SquidlockInterface public squidlock;
 
     /// @notice The address of the Compound governance token
     // XXX: CompInterface public comp;
@@ -1124,14 +1124,14 @@ contract GovernorAlpha {
     /// @notice An event emitted when a proposal has been canceled
     event ProposalCanceled(uint id);
 
-    /// @notice An event emitted when a proposal has been queued in the Timelock
+    /// @notice An event emitted when a proposal has been queued in the Squidlock
     event ProposalQueued(uint id, uint eta);
 
-    /// @notice An event emitted when a proposal has been executed in the Timelock
+    /// @notice An event emitted when a proposal has been executed in the Squidlock
     event ProposalExecuted(uint id);
 
-    constructor(address timelock_, address squid_, address guardian_) public {
-        timelock = TimelockInterface(timelock_);
+    constructor(address squidlock_, address squid_, address guardian_) public {
+        squidlock = SquidlockInterface(squidlock_);
         squid = SquidToken(squid_);
         guardian = guardian_;
     }
@@ -1179,7 +1179,7 @@ contract GovernorAlpha {
     function queue(uint proposalId) public {
         require(state(proposalId) == ProposalState.Succeeded, "GovernorAlpha::queue: proposal can only be queued if it is succeeded");
         Proposal storage proposal = proposals[proposalId];
-        uint eta = add256(block.timestamp, timelock.delay());
+        uint eta = add256(block.timestamp, squidlock.delay());
         for (uint i = 0; i < proposal.targets.length; i++) {
             _queueOrRevert(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], eta);
         }
@@ -1188,8 +1188,8 @@ contract GovernorAlpha {
     }
 
     function _queueOrRevert(address target, uint value, string memory signature, bytes memory data, uint eta) internal {
-        require(!timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))), "GovernorAlpha::_queueOrRevert: proposal action already queued at eta");
-        timelock.queueTransaction(target, value, signature, data, eta);
+        require(!squidlock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))), "GovernorAlpha::_queueOrRevert: proposal action already queued at eta");
+        squidlock.queueTransaction(target, value, signature, data, eta);
     }
 
     function execute(uint proposalId) public payable {
@@ -1197,7 +1197,7 @@ contract GovernorAlpha {
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
         for (uint i = 0; i < proposal.targets.length; i++) {
-            timelock.executeTransaction.value(proposal.values[i])(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
+            squidlock.executeTransaction.value(proposal.values[i])(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
         }
         emit ProposalExecuted(proposalId);
     }
@@ -1211,7 +1211,7 @@ contract GovernorAlpha {
 
         proposal.canceled = true;
         for (uint i = 0; i < proposal.targets.length; i++) {
-            timelock.cancelTransaction(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
+            squidlock.cancelTransaction(proposal.targets[i], proposal.values[i], proposal.signatures[i], proposal.calldatas[i], proposal.eta);
         }
 
         emit ProposalCanceled(proposalId);
@@ -1241,7 +1241,7 @@ contract GovernorAlpha {
             return ProposalState.Succeeded;
         } else if (proposal.executed) {
             return ProposalState.Executed;
-        } else if (block.timestamp >= add256(proposal.eta, timelock.GRACE_PERIOD())) {
+        } else if (block.timestamp >= add256(proposal.eta, squidlock.GRACE_PERIOD())) {
             return ProposalState.Expired;
         } else {
             return ProposalState.Queued;
@@ -1283,7 +1283,7 @@ contract GovernorAlpha {
 
     function __acceptAdmin() public {
         require(msg.sender == guardian, "GovernorAlpha::__acceptAdmin: sender must be gov guardian");
-        timelock.acceptAdmin();
+        squidlock.acceptAdmin();
     }
 
     function __abdicate() public {
@@ -1291,14 +1291,14 @@ contract GovernorAlpha {
         guardian = address(0);
     }
 
-    function __queueSetTimelockPendingAdmin(address newPendingAdmin, uint eta) public {
-        require(msg.sender == guardian, "GovernorAlpha::__queueSetTimelockPendingAdmin: sender must be gov guardian");
-        timelock.queueTransaction(address(timelock), 0, "setPendingAdmin(address)", abi.encode(newPendingAdmin), eta);
+    function __queueSetSquidlockPendingAdmin(address newPendingAdmin, uint eta) public {
+        require(msg.sender == guardian, "GovernorAlpha::__queueSetSquidlockPendingAdmin: sender must be gov guardian");
+        squidlock.queueTransaction(address(squidlock), 0, "setPendingAdmin(address)", abi.encode(newPendingAdmin), eta);
     }
 
-    function __executeSetTimelockPendingAdmin(address newPendingAdmin, uint eta) public {
-        require(msg.sender == guardian, "GovernorAlpha::__executeSetTimelockPendingAdmin: sender must be gov guardian");
-        timelock.executeTransaction(address(timelock), 0, "setPendingAdmin(address)", abi.encode(newPendingAdmin), eta);
+    function __executeSetSquidlockPendingAdmin(address newPendingAdmin, uint eta) public {
+        require(msg.sender == guardian, "GovernorAlpha::__executeSetSquidlockPendingAdmin: sender must be gov guardian");
+        squidlock.executeTransaction(address(squidlock), 0, "setPendingAdmin(address)", abi.encode(newPendingAdmin), eta);
     }
 
     function add256(uint256 a, uint256 b) internal pure returns (uint) {
@@ -1319,7 +1319,7 @@ contract GovernorAlpha {
     }
 }
 
-interface TimelockInterface {
+interface SquidlockInterface {
     function delay() external view returns (uint);
     function GRACE_PERIOD() external view returns (uint);
     function acceptAdmin() external;

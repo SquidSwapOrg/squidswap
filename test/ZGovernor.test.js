@@ -2,7 +2,7 @@ const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const ethers = require('ethers');
 const SquidToken = artifacts.require('SquidToken');
 const SquidChef = artifacts.require('SquidChef');
-const Timelock = artifacts.require('Timelock');
+const Squidlock = artifacts.require('Squidlock');
 const GovernorAlpha = artifacts.require('GovernorAlpha');
 const MockERC20 = artifacts.require('MockERC20');
 
@@ -27,12 +27,12 @@ contract('Governor', ([alice, minter, dev]) => {
         assert.equal((await this.squid.totalSupply()).valueOf(), '108');
         assert.equal((await this.squid.balanceOf(minter)).valueOf(), '100');
         assert.equal((await this.squid.balanceOf(dev)).valueOf(), '8');
-        // Transfer ownership to timelock contract
-        this.timelock = await Timelock.new(alice, time.duration.days(2), { from: alice });
-        this.gov = await GovernorAlpha.new(this.timelock.address, this.squid.address, alice, { from: alice });
-        await this.timelock.setPendingAdmin(this.gov.address, { from: alice });
+        // Transfer ownership to squidlock contract
+        this.squidlock = await Squidlock.new(alice, time.duration.days(2), { from: alice });
+        this.gov = await GovernorAlpha.new(this.squidlock.address, this.squid.address, alice, { from: alice });
+        await this.squidlock.setPendingAdmin(this.gov.address, { from: alice });
         await this.gov.__acceptAdmin({ from: alice });
-        await this.chef.transferOwnership(this.timelock.address, { from: alice });
+        await this.chef.transferOwnership(this.squidlock.address, { from: alice });
         await expectRevert(
             this.chef.add('100', this.lp2.address, true, { from: alice }),
             'Ownable: caller is not the owner',
@@ -60,7 +60,7 @@ contract('Governor', ([alice, minter, dev]) => {
             await time.advanceBlock();
         }
         await this.gov.queue('1');
-        await expectRevert(this.gov.execute('1'), "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
+        await expectRevert(this.gov.execute('1'), "Squidlock::executeTransaction: Transaction hasn't surpassed time lock.");
         await time.increase(time.duration.days(3));
         await this.gov.execute('1');
         assert.equal((await this.chef.poolLength()).valueOf(), '2');
