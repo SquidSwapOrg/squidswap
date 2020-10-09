@@ -1,1 +1,13 @@
-# squidswap
+# SquidSwap 
+
+## Deployed Contracts / Hash
+
+// V2 Ropsten
+// SquidToken : 0xC8E503572837e3957DD01A85B626EA48F6799F95
+// SquidChef: 0x4dB5bdbCe76a5cc369C7E118F3bF97FcA9158219
+// SquidRestaurant: 0xC9BB690D4f799212ACd5c9BC33f4f61A0229735b
+// SquidBar: 0x2C9D997A8cE5dA398dBCF43e70916cC2A6252Cc8
+
+## License
+
+WTFPL
