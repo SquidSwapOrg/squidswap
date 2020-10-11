@@ -1,4 +1,5 @@
 # SquidSwap 
+🦑 An experimental community-owned automated market maker (AMM) - http://www.squidswap.org 
 
 ## Deployed Contracts / Hash
 
